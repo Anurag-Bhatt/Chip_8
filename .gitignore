@@ -1,5 +1,5 @@
 # Ignore compile files
 *.o
 *.exe
-*.ou
+*.out
 chip_8
