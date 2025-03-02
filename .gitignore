@@ -1,0 +1,5 @@
+# Ignore compile files
+*.o
+*.exe
+*.ou
+chip_8
