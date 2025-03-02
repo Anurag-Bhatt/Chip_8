@@ -8,3 +8,4 @@ run:
 
 clean:
 	rm chip_8
+
