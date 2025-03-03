@@ -16,11 +16,8 @@ int main(int argc, char **argv){
 
     if(argc > 1){
         romFilePath = argv[1];
-        if(chip.LoadRom(romFilePath.c_str())){
-
-            std::cout << "Running ROM: <" << romFilePath << "> \n";
-        }else{
-            std::cerr << "Could not load rom from Path: " << romFilePath << " \n";
+        if(!chip.LoadRom(romFilePath.c_str())){
+            return -1;
         }
     }
     else{

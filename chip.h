@@ -18,7 +18,22 @@ public:
     void DrawGraphics();
     void CheckInput();
 
+    void PrintMemory();
+
 private:
+
+    void Draw(unsigned char x, unsigned char y, unsigned char N);
+    unsigned char Key();
+    unsigned char GetDelay();
+    unsigned char SetDelay(unsigned short v);
+    unsigned char SetSound(unsigned short v);
+    unsigned char GetKey();
+
+    unsigned short SetSprite(unsigned short v);
+
+    // void RegDump(unsigned short v, unsigned short &I);
+    void RegDump(unsigned short *, unsigned short , int);
+    void RegLoad(unsigned short *, unsigned short , int);
 
     // What all should be private?
     unsigned short opcodes;
