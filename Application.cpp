@@ -1,50 +1,130 @@
 #include <iostream>
+#include <SDL2/SDL.h>
+#include "chip.h" // Your Chip-8 header
 
-#include "chip.h"
+// Define window and Chip-8 display dimensions
+const int CHIP8_WIDTH = 64;
+const int CHIP8_HEIGHT = 32;
+const int WINDOW_WIDTH = 640;   // For example, scaling 64x32 to 640x320
+const int WINDOW_HEIGHT = 320;
 
-// TODO: Figure out how to display the graphics using SDL.
-// TODO: Implement the CH-8 functionality.
-
-
-int main(int argc, char **argv){
-
-    // Initializing the program
+int main(int argc, char **argv) {
     std::cout << "Emulating Chip-8\n";
+
+    // Initialize SDL
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "SDL Initialization failed: " << SDL_GetError() << std::endl;
+        return -1;
+    }
     
+    // Create a window
+    SDL_Window* window = SDL_CreateWindow("Chip-8 Emulator",
+                                          SDL_WINDOWPOS_CENTERED,
+                                          SDL_WINDOWPOS_CENTERED,
+                                          WINDOW_WIDTH,
+                                          WINDOW_HEIGHT,
+                                          SDL_WINDOW_SHOWN);
+    if (!window) {
+        std::cerr << "Window creation failed: " << SDL_GetError() << std::endl;
+        SDL_Quit();
+        return -1;
+    }
+    
+    // Create a renderer
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) {
+        std::cerr << "Renderer creation failed: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+    
+    // Create an SDL texture for the Chip-8 display (64 x 32 pixels)
+    SDL_Texture* texture = SDL_CreateTexture(renderer,
+                                             SDL_PIXELFORMAT_RGBA8888,
+                                             SDL_TEXTUREACCESS_STREAMING,
+                                             CHIP8_WIDTH,
+                                             CHIP8_HEIGHT);
+    if (!texture) {
+        std::cerr << "Texture creation failed: " << SDL_GetError() << std::endl;
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+    
+    // Create and initialize the Chip-8 emulator
     Chip_8 chip;
     std::string romFilePath = "NO_ROM";
-
-    if(argc > 1){
+    if (argc > 1) {
         romFilePath = argv[1];
-        if(!chip.LoadRom(romFilePath.c_str())){
+        if (!chip.LoadRom(romFilePath.c_str())) {
+            SDL_DestroyTexture(texture);
+            SDL_DestroyRenderer(renderer);
+            SDL_DestroyWindow(window);
+            SDL_Quit();
             return -1;
         }
-    }
-    else{
+    } else {
         std::cout << "No ROM supplied, initiating default behaviour.\n";
-        std::cout << "Usage: chip_8 <ROMFILEPATH> \n";
+        std::cout << "Usage: chip_8 <ROMFILEPATH>\n";
     }
-
-    // Init chip_8 -> done by the constructor
-
-    while(chip.ShouldEmulate()){
-        // Emulate one cycle of chip
-
-        chip.EmulateCycle();
-
-        // Draw the graphics
-
-        if(chip.ShouldDraw()){
-            chip.DrawGraphics();
+    
+    bool quit = false;
+    SDL_Event event;
+    
+    std::cout << "Printing out Memory\n";
+    for (int i = 0; i < 16; i++) {
+        for(int j = 0; j < 256; j++){
+            std::cout << std::hex << (int)chip.GetMem()[i*64 + j] << " ";
         }
-
-        // Checks for input
-
-        chip.CheckInput();
-
-        // Continue the loop till the chip reads instructions
+        std::cout << std::endl;
     }
+    std::cout << std::endl;
 
+    // Main emulation loop
+    while (chip.ShouldEmulate() && !quit) {
+        // Process SDL events (e.g. window close)
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT)
+                quit = true;
+        }
+        
+        // Emulate one cycle of Chip-8
+        chip.EmulateCycle();
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
+        // If a draw is requested, update the SDL texture and render it
+        if (chip.ShouldDraw()) {
+            // Get the graphics buffer from Chip-8.
+            // (Assumes you implemented GetGfx() to return a pointer to gfx.)
+            const unsigned char* gfxBuffer = chip.Getgfx();
+            
+            // Convert each pixel: nonzero becomes white (0xFFFFFFFF), zero becomes black (0xFF000000)
+            uint32_t pixels[CHIP8_WIDTH * CHIP8_HEIGHT];
+            for (int i = 0; i < CHIP8_WIDTH * CHIP8_HEIGHT; i++) {
+                pixels[i] = (gfxBuffer[i] ? 0xFFFFFFFF : 0x000000FF);
+            }
+            
+            // Update the texture with new pixel data
+            SDL_UpdateTexture(texture, nullptr, pixels, CHIP8_WIDTH * sizeof(uint32_t));
+            SDL_RenderClear(renderer);
+            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+            SDL_RenderPresent(renderer);
+        }
+        
+        // Check for input (chip.CheckInput() should be implemented to read keyboard events)
+        chip.CheckInput();
+        
+        // Delay to control emulation speed (adjust as needed)
+        SDL_Delay(2);
+    }
+    
+    // Clean up SDL resources
+    SDL_DestroyTexture(texture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    
     return 0;
 }

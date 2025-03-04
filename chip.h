@@ -8,6 +8,7 @@ class Chip_8{
     // The constructor initalize the chip ie sets everything to 0
 public:
     Chip_8();
+    ~Chip_8();
 
     bool LoadRom(const char* romPath);
     void EmulateCycle();
@@ -15,27 +16,18 @@ public:
     bool ShouldEmulate();
     bool ShouldDraw();
 
-    void DrawGraphics();
     void CheckInput();
 
     void PrintMemory();
 
+    void DebugDraw();
+
+    const unsigned char *Getgfx();
+    const unsigned char *GetMem();
+
 private:
 
-    void Draw(unsigned char x, unsigned char y, unsigned char N);
-    unsigned char Key();
-    unsigned char GetDelay();
-    unsigned char SetDelay(unsigned short v);
-    unsigned char SetSound(unsigned short v);
-    unsigned char GetKey();
-
-    unsigned short SetSprite(unsigned short v);
-
-    // void RegDump(unsigned short v, unsigned short &I);
-    void RegDump(unsigned short *, unsigned short , int);
-    void RegLoad(unsigned short *, unsigned short , int);
-
-    // What all should be private?
+  // What all should be private?
     unsigned short opcodes;
     unsigned short I;
     unsigned short pc;

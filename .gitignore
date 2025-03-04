@@ -3,3 +3,5 @@
 *.exe
 *.out
 chip_8
+*.txt
+test_roms/

@@ -1,11 +1,10 @@
-default: chip_8
+default: chip8
 
-chip_8:
-	g++ -o chip_8 Application.cpp chip.cpp
+chip8:
+	g++ -std=c++17 -o chip8 Application.cpp chip.cpp $(shell sdl2-config --cflags --libs)
 
-run:
-	./chip_8 "No_ROM_Provided"
+run: chip8
+	./chip8 "No_ROM_Provided"
 
 clean:
-	rm chip_8
-
+	rm chip8
