@@ -2,80 +2,72 @@
 #include <cstring>
 #include <fstream>
 #include <filesystem>
-#include <time.h>
-
+#include <ctime> 
 #include <SDL2/SDL.h>
 
 #include "chip.h"
 
-Chip_8::Chip_8()
-{     
-    unsigned char fontset[80] =
-    {
-    0xF0, 0x90, 0x90, 0x90, 0xF0, //0
-    0x20, 0x60, 0x20, 0x20, 0x70, //1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, //2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, //3
-    0x90, 0x90, 0xF0, 0x10, 0x10, //4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, //5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, //6
-    0xF0, 0x10, 0x20, 0x40, 0x40, //7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, //8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, //9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, //A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, //B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, //C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, //D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, //E
-    0xF0, 0x80, 0xF0, 0x80, 0x80  //F
+Chip_8::Chip_8() {
+    // Chip‑8 fontset (80 bytes)
+    unsigned char fontset[80] = {
+        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+        0x20, 0x60, 0x20, 0x20, 0x70, // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
 
+    // Initialize registers and memory
+    pc = 0x200;       // Program counter starts at 0x200
+    opcodes = 0;
+    I = 0;
+    sp = 0;
 
-    
-    // Sets the pointers to their default values
-    this->pc = 0x200;
-    this->opcodes = 0;
-    this->I = 0;
-    this->sp = 0;
-    
-    this->drawFlag  = false;
-    this->delay_timer = 0;
-    this->sound_timer = 0;
-    
-    for(int i = 0; i < 16; i++){
-        this->stack[i] = 0;
-        this->key[i] = 0;
-        this->V[i] = 0;
-    }
-    
-    this->drawFlag = false;
-    this->emulateFlag = false;
+    delay_timer = 0;
+    sound_timer = 0;
+    drawFlag = false;
+    emulateFlag = true;
 
-    for(int i = 0; i < 4096; i++){
-        this->memory[i] = 0;
+    // Clear registers, stack, and keys
+    for (int i = 0; i < 16; i++) {
+        V[i] = 0;
+        stack[i] = 0;
+        key[i] = 0;
     }
-    for(int i = 0; i < 2048; i++){
-        this->gfx[i] = 0;
-    }
-    for(int i = 0; i < 80; i++){
-        this->memory[i] = fontset[i];
+    // Clear memory and gfx
+    memset(memory, 0, sizeof(memory));
+    memset(gfx, 0, sizeof(gfx));
+
+    // Load fontset into memory
+    for (int i = 0; i < 80; i++) {
+        memory[i] = fontset[i];
     }
 
-    srand(time(NULL));
+    // Seed random number generator
+    srand(static_cast<unsigned int>(time(nullptr)));
 }
 
-Chip_8::~Chip_8()
-{
-
+Chip_8::~Chip_8() {
+    
 }
 
-bool Chip_8::LoadRom(const char *romPath)
-{
+bool Chip_8::LoadRom(const char *romPath) {
     std::fstream romFile;
-    romFile.open(romPath,std::ios::in | std::ios::binary);
+    romFile.open(romPath, std::ios::in | std::ios::binary);
 
-    if(!romFile.is_open()){
-        std::cerr << "Could not load rom at path: " << romPath << "\nCheck Path.\n";
+    if (!romFile.is_open()) {
+        std::cerr << "Could not load ROM at path: " << romPath << "\nCheck Path.\n";
         return false;
     }
 
@@ -83,412 +75,375 @@ bool Chip_8::LoadRom(const char *romPath)
     auto file_size = std::filesystem::file_size(romPath);
     std::cout << "ROM File size is: " << file_size << "\n";
 
-    if(file_size > (4096-512)){
-        std::cerr << "Could not Load ROM ERR: sizeof(ROM) > internal memory\n";
-        
+    if (file_size > (4096 - 512)) {
+        std::cerr << "Could not Load ROM ERR: ROM size exceeds available memory\n";
         return false;
     }
 
-    // TODO: Make this into more C++ style than C
     char *bufferData = new char[file_size];
-    if(bufferData == NULL){
-        std::cerr << "ERROR: could not read rom\nBuffer not allocated\n";
-    }
     romFile.read(bufferData, file_size);
 
-
-    for(int i = 0; i < file_size; i++){
-        this->memory[512 + i] = bufferData[i];
+    // Load ROM into memory starting at 0x200
+    for (size_t i = 0; i < file_size; i++) {
+        memory[512 + i] = static_cast<unsigned char>(bufferData[i]);
     }
-
-    // PrintMemory();
 
     romFile.close();
     delete[] bufferData;
-    std::cout << "Rom read successfully.\n";
+    std::cout << "ROM read successfully.\n";
     return true;
-
 }
 
-void Chip_8::EmulateCycle()
-{
-    
-    // How do I emulate the cycles? By checking what the next opcode is.
-    // Crazy brother GENUIUS!
+void Chip_8::EmulateCycle() {
+    std::cout << "Emulating next cycle of Chip\n";
+
+    // Fetch opcode (two bytes)
+    opcodes = (memory[pc] << 8) | memory[pc + 1];
+
+    // For debugging
+    std::cout << "Opcode: 0x" << std::hex << opcodes << std::dec << "\n";
+
     drawFlag = false;
-    opcodes = ((memory[pc] << 8) | memory[pc+1]); 
 
-    switch (opcodes & 0xF000)
-    {
-    case 0x0000:
-            switch (opcodes & 0x00FF)
-            {
-            case 0x00E:
-                // Clear the screen;
-                for(int i = 0; i < 2048; i++){
-                    gfx[i] = 0x0; 
-                }
-                drawFlag = true;
-                pc += 2;
-                break;
-            case 0x0EE:
-                // return? 
-                sp--;
-                pc = stack[sp];
-                pc += 2;
-                break;
-            
-            default:
-                std::cout << "Undefined opcode: " << opcodes <<"\n";
-                std::cout << "Opcode: 0x" << std::dec << opcodes << std::dec << "\n";
-                pc += 2;
-                break;
-            }
-        break;
-    case 0x1000:
-        pc = opcodes & 0x0FFF;
-        break;
-    case 0x2000:
-        stack[sp] = pc;
-        sp++;
-        pc = opcodes & 0x0FFF;
-        break;
-    case 0x3000:
-        if(V[(opcodes & 0x0F00) >> 8] == (opcodes&0x00FF)){
-            pc += 4;
-        }else{
-            pc += 2;
-        }
-        break;
-    case 0x4000:
-        if(V[(opcodes & 0x0F00) >> 8] != (opcodes&0x00FF)){
-            pc += 4;
-        }else{
-            pc += 2;
-        }
-        break;
-    case 0x5000:
-        if(V[(opcodes & 0x0F00) >> 8] == V[(opcodes & 0x0F0) >> 4]){
-            pc += 4;
-        }else{
-            pc += 2;
-        }
-        break;
-    case 0x6000:
-        V[(opcodes & 0x0F00) >> 8] = (opcodes&0x00FF);
-        pc += 2;
-         
-        break;
-    case 0x7000:
-        V[(opcodes & 0x0F00) >> 8] += (opcodes&0x00FF);
-        pc += 2;
-
-        break;
-    case 0x8000:
-       switch (opcodes & 0x000F)
-       {
+    // Decode opcode using the high nibble
+    switch (opcodes & 0xF000) {
         case 0x0000:
-            V[(opcodes & 0x0F00) >> 8] = V[(opcodes & 0x00F0) >> 4];
-            pc += 2;
-        break;
-        case 0x0001:
-            V[(opcodes & 0x0F00) >> 8] |= V[(opcodes & 0x00F0) >> 4];
-            pc += 2;
-        break;
-        case 0X0002:
-            V[(opcodes & 0x0F00) >> 8] &= V[(opcodes & 0x00F0) >> 4];
-            pc += 2;
-        break;
-        case 0X0003:
-            V[(opcodes & 0x0F00) >> 8] ^= V[(opcodes & 0x00F0) >> 4];
-            pc += 2;
-        break;
-        case 0x0004:
-            V[(opcodes & 0x0F00) >> 8] += V[(opcodes & 0x00F0) >> 4];
-            pc += 2;
-        break;
-        case 0x0005:
-            V[(opcodes & 0x0F00) >> 8] -= V[(opcodes & 0x00F0) >> 4];
-            pc += 2;
-        break;
-        case 0x0006:
-            V[(opcodes & 0x0F00) >> 8] >>= 1;
-            pc += 2;
-        break;
-        case 0x0007:
-            V[(opcodes & 0x0F00) >> 8] = V[(opcodes & 0x00F0) >> 4] - V[(opcodes & 0x0F00) >> 8];
-            pc += 2;
-        break;
-        case 0x0008:
-            V[(opcodes & 0x0F00) >> 8] <<= 1;
-            pc += 2;
-        break;
-       default:
-       std::cout << "Undefined opcode: " << opcodes << "\n";
-       std::cout << "Opcode: 0x" << std::dec << opcodes << std::dec << "\n";
-       pc += 2;
-        break;
-       }
-        break;
-    case 0x9000:
-        if(V[(opcodes & 0x0F00) >> 8] != V[(opcodes & 0x0F0) >> 4]){
-            pc += 4;
-        }else{
-            pc += 2;
+            switch (opcodes & 0x00FF) {
+                case 0x00E0:  // Clear the display
+                    memset(gfx, 0, sizeof(gfx));
+                    drawFlag = true;
+                    pc += 2;
+                    break;
+                case 0x00EE:  // Return from subroutine
+                    sp--;
+                    pc = stack[sp];
+                    pc += 2;
+                    break;
+                default:
+                    std::cout << "Undefined opcode: 0x" << std::hex << opcodes << std::dec << "\n";
+                    pc += 2;
+                    break;
+            }
+            break;
+
+        case 0x1000:  // Jump to address NNN
+            pc = opcodes & 0x0FFF;
+            break;
+
+        case 0x2000:  // Call subroutine at NNN
+            stack[sp] = pc;
+            sp++;
+            pc = opcodes & 0x0FFF;
+            break;
+
+        case 0x3000: { // Skip next instruction if Vx == kk
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            uint8_t kk = opcodes & 0x00FF;
+            pc += (V[x] == kk) ? 4 : 2;
+            break;
         }
-        break;
-    case 0xA000:
-        this->I = (opcodes & 0xFFF);
-        pc += 2;
-        break;
-    case 0xB000:
-        this->pc = V[0] + (opcodes & 0xFFF);
-        pc += 2;
-        break;
-    case 0xC000:
-        // uses srand(time(NULL)) in the constructor when intiatating chip-8 object
-        V[(opcodes & 0X0F00) >> 8] = rand() & ((opcodes & 0x00FF));
-        pc += 2;
-        break;
-    case 0xD000:
-        // Draws the sprite at (Vx,Vy) and height N -> 0xDXYN;
-        {
 
-            unsigned short x = V[(opcodes & 0x0F00) >> 8];
-            unsigned short y = V[(opcodes & 0x00F0) >> 4];
-            unsigned short height = opcodes & 0x000F;
-            unsigned short pixel;
+        case 0x4000: { // Skip next instruction if Vx != kk
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            uint8_t kk = opcodes & 0x00FF;
+            pc += (V[x] != kk) ? 4 : 2;
+            break;
+        }
 
+        case 0x5000: { // Skip next instruction if Vx == Vy
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            uint8_t y = (opcodes & 0x00F0) >> 4;
+            pc += (V[x] == V[y]) ? 4 : 2;
+            break;
+        }
+
+        case 0x6000: { // Set Vx = kk
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            V[x] = opcodes & 0x00FF;
+            pc += 2;
+            break;
+        }
+
+        case 0x7000: { // Set Vx = Vx + kk
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            V[x] += opcodes & 0x00FF;
+            pc += 2;
+            break;
+        }
+
+        case 0x8000: {
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            uint8_t y = (opcodes & 0x00F0) >> 4;
+            switch (opcodes & 0x000F) {
+                case 0x0:  // Set Vx = Vy
+                    V[x] = V[y];
+                    pc += 2;
+                    break;
+                case 0x1:  // Set Vx = Vx OR Vy
+                    V[x] |= V[y];
+                    pc += 2;
+                    break;
+                case 0x2:  // Set Vx = Vx AND Vy
+                    V[x] &= V[y];
+                    pc += 2;
+                    break;
+                case 0x3:  // Set Vx = Vx XOR Vy
+                    V[x] ^= V[y];
+                    pc += 2;
+                    break;
+                case 0x4: { // Set Vx = Vx + Vy, set VF = carry
+                    uint16_t sum = V[x] + V[y];
+                    V[0xF] = (sum > 255) ? 1 : 0;
+                    V[x] = sum & 0xFF;
+                    pc += 2;
+                    break;
+                }
+                case 0x5: { // Set Vx = Vx - Vy, set VF = NOT borrow
+                    V[0xF] = (V[x] > V[y]) ? 1 : 0;
+                    V[x] -= V[y];
+                    pc += 2;
+                    break;
+                }
+                case 0x6: { // Set Vx = Vx >> 1; VF = least significant bit before shift
+                    V[0xF] = V[x] & 0x1;
+                    V[x] >>= 1;
+                    pc += 2;
+                    break;
+                }
+                case 0x7: { // Set Vx = Vy - Vx, set VF = NOT borrow
+                    V[0xF] = (V[y] > V[x]) ? 1 : 0;
+                    V[x] = V[y] - V[x];
+                    pc += 2;
+                    break;
+                }
+                case 0xE: { // Set Vx = Vx << 1; VF = most significant bit before shift
+                    V[0xF] = (V[x] & 0x80) >> 7;
+                    V[x] <<= 1;
+                    pc += 2;
+                    break;
+                }
+                default:
+                    std::cout << "Undefined opcode in 0x8000 group: 0x" << std::hex << opcodes << std::dec << "\n";
+                    pc += 2;
+                    break;
+            }
+            break;
+        }
+
+        case 0x9000: { // Skip next instruction if Vx != Vy
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            uint8_t y = (opcodes & 0x00F0) >> 4;
+            pc += (V[x] != V[y]) ? 4 : 2;
+            break;
+        }
+
+        case 0xA000: // Set I = NNN
+            I = opcodes & 0x0FFF;
+            pc += 2;
+            break;
+
+        case 0xB000: // Jump to address V0 + NNN
+            pc = V[0] + (opcodes & 0x0FFF);
+            break;
+
+        case 0xC000: { // Set Vx = random byte AND kk
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            V[x] = (rand() % 256) & (opcodes & 0x00FF);
+            pc += 2;
+            break;
+        }
+
+        case 0xD000: { // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+            uint8_t x = V[(opcodes & 0x0F00) >> 8];
+            uint8_t y = V[(opcodes & 0x00F0) >> 4];
+            uint8_t height = opcodes & 0x000F;  // Use lower nibble as height
+            uint8_t pixel;
             V[0xF] = 0;
-            for(int yline = 0; yline < height; yline++){
-                pixel = this->memory[I + yline];
-                for(int xline = 0; xline < 8; xline++){
-
-                    if(pixel & (0x80 >> xline) != 0){
-                        if(gfx[x + xline + ((y + yline) * 64)] == 1){
-                            V[0xF] = 1;
+            for (int yline = 0; yline < height; yline++) {
+                pixel = memory[I + yline];
+                for (int xline = 0; xline < 8; xline++) {
+                    // Correct operator precedence with parentheses
+                    if ((pixel & (0x80 >> xline)) != 0) {
+                        int index = x + xline + ((y + yline) * 64);
+                        // Check screen boundaries (optional)
+                        if (index < (64 * 32)) {
+                            if (gfx[index] == 1)
+                                V[0xF] = 1;
+                            gfx[index] ^= 1;
                         }
-                        gfx[x + xline + ((y + yline) * 64)] ^= 1;
                     }
                 }
             }
             drawFlag = true;
             pc += 2;
-        }
-        break;
-    case 0xE000:
-        switch (opcodes & 0x000F)
-        {
-        case 0x000E:
-        // Here too -- done
-            if(key[V[(opcodes & 0x0F00) >> 8]] != 0)
-            {
-                pc += 4;
-            }else{
-                pc += 2;
-            }
-        break;
-        case 0x0001:
-        // Implement -- done
-            if(key[V[(opcodes & 0x0F00) >> 8]] == 0)
-            {
-                pc += 4;
-            }else{
-                pc += 2;
-            }
-        break;
-        default:
-            std::cout << "Undefined opcode: " << opcodes << "\n";
-            std::cout << "Opcode: 0x" << std::dec << opcodes << std::dec << "\n";
-            pc += 2;
             break;
         }
-        break;
-    case 0xF000:
-        switch (opcodes & 0x000F)
-        {
-        case 0x0007:
-            V[(opcodes & 0x0F00) >> 8] = delay_timer; // Implement
-            pc += 2;
-        break;
-        case 0x000A:    
-            // Implement -- done, awaits a keypress and stores it in Vx;
-            {
-                bool keyPress = false;
 
-                for(int i=0;i<16;i++){
-                    if(key[i] != 0){
-                        V[(opcodes & 0x0F00) >> 8] = key[i];
-                        keyPress = true;
+        case 0xE000: {
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            switch (opcodes & 0x00FF) {
+                case 0x9E:  // Skip next instruction if key with the value of Vx is pressed
+                    pc += (key[V[x]] != 0) ? 4 : 2;
+                    break;
+                case 0xA1:  // Skip next instruction if key with the value of Vx is not pressed
+                    pc += (key[V[x]] == 0) ? 4 : 2;
+                    break;
+                default:
+                    std::cout << "Undefined opcode in 0xE000 group: 0x" << std::hex << opcodes << std::dec << "\n";
+                    pc += 2;
+                    break;
+            }
+            break;
+        }
+
+        case 0xF000: {
+            uint8_t x = (opcodes & 0x0F00) >> 8;
+            switch (opcodes & 0x00FF) {
+                case 0x07:  // Set Vx = delay timer value
+                    V[x] = delay_timer;
+                    pc += 2;
+                    break;
+                case 0x0A: { // Wait for a key press, store the value of the key in Vx.
+                    bool keyPress = false;
+                    for (int i = 0; i < 16; i++) {
+                        if (key[i] != 0) {
+                            V[x] = i;
+                            keyPress = true;
+                            break;
+                        }
                     }
+                    if (!keyPress) {
+                        return; // Skip cycle if no key press detected.
+                    }
+                    pc += 2;
+                    break;
                 }
-                // if no key press then returns, skips the cycles
-                if(keyPress == false){
-                    return;
+                case 0x15:  // Set delay timer = Vx
+                    delay_timer = V[x];
+                    pc += 2;
+                    break;
+                case 0x18:  // Set sound timer = Vx
+                    sound_timer = V[x];
+                    pc += 2;
+                    break;
+                case 0x1E:  // Set I = I + Vx
+                    I += V[x];
+                    pc += 2;
+                    break;
+                case 0x29:  // Set I = location of sprite for digit Vx
+                    // Typically, each sprite is 5 bytes long and stored at beginning of memory.
+                    I = V[x] * 5;
+                    pc += 2;
+                    break;
+                case 0x33: { // Store BCD representation of Vx in memory locations I, I+1, and I+2.
+                    uint8_t value = V[x];
+                    memory[I]   = value / 100;
+                    memory[I+1] = (value / 10) % 10;
+                    memory[I+2] = value % 10;
+                    pc += 2;
+                    break;
                 }
-                pc += 2;
-            }
-        break;
-        case 0x0005:
-            switch (opcodes & 0x00F0)
-            {
-            case 0x0010:
-            delay_timer = V[(opcodes & 0x0F00) >> 8];
-                pc += 2;
-            break;
-            case 0x0050:
-                {
-                // This functions need the array V the position of I and the index of the 
-                // end point ie point till it should read into the mem buffer.
-                int x = V[(opcodes & 0x0F00) >> 8];
-                for(int i=0;i<x;i++){
-                    memory[I + i] = V[i];
+                case 0x55: { // Store registers V0 through Vx in memory starting at address I.
+                    for (int i = 0; i <= x; i++) {
+                        memory[I + i] = V[i];
+                    }
+                    // Some interpreters do not modify I; others do: adjust as needed.
+                    pc += 2;
+                    break;
                 }
-                I += x + 1;
-                pc += 2;
-            }
-            break;
-            case 0x0060:
-            {
-                int x = V[(opcodes & 0x0F00) >> 8];
-                for(int i=0;i<x;i++){
-                    V[i] = memory[I + i];
+                case 0x65: { // Read registers V0 through Vx from memory starting at address I.
+                    for (int i = 0; i <= x; i++) {
+                        V[i] = memory[I + i];
+                    }
+                    // Some interpreters do not modify I; adjust as needed.
+                    pc += 2;
+                    break;
                 }
-                I += x + 1;
-                pc += 2;
+                default:
+                    std::cout << "Undefined opcode in 0xF000 group: 0x" << std::hex << opcodes << std::dec << "\n";
+                    pc += 2;
+                    break;
             }
             break;
-            default:
-                std::cout << "Undefined opcodes: " << opcodes << "\n";
-                std::cout << "Opcode: 0x" << std::dec << opcodes << std::dec << "\n";
-                pc += 2;
-            break;
-            }
-        break;
-        case 0x0008:
-            // Implement -- done
-            sound_timer = V[(opcodes & 0x0F00) >> 8];
-            pc += 2;
-        break;
-        case 0x000E:
-            this->I += V[(opcodes & 0x0F00) >> 8];
-            pc += 2;
-        break;
-        case 0x0009:
-            // Icouldnt figure this out, looked at a guide's solution.
-            this->I += V[(opcodes & 0x0F00) >> 8] * 0x5;
-            pc += 2;
-        break;
-        case 0x0003:{
-            // Sets BCD(V[x]) to I, I+1, I+2
-            this->memory[I] = V[(opcodes & 0x0F00) >> 8] / 100;
-            this->memory[I+1] = (V[(opcodes & 0x0F00) >> 8] / 10) % 10;
-            this->memory[I+2] = V[(opcodes & 0x0F00) >> 8] % 10;
-            pc += 2;
-            }
-        break;
+        }
+
         default:
-            std::cout << "Undefined opcodes: " << opcodes << "\n";
-            std::cout << "Opcode: 0x" << std::dec << opcodes << std::dec << "\n";
+            std::cout << "Undefined opcode: 0x" << std::hex << opcodes << std::dec << "\n";
             pc += 2;
             break;
-        }
-        break;
-    default: 
-        std::cout << "Undefined opcodes: " << opcodes << "\n"; 
-        std::cout << "Opcode: 0x" << std::dec << opcodes << std::dec << "\n";
-        pc += 2;
-    break;
     }
 
-    if(delay_timer > 0){
-        --delay_timer;
-    }
+    // Update timers
+    if (delay_timer > 0)
+        delay_timer--;
 
-    if(sound_timer > 0){
-        
-        if(sound_timer == 1){
+    if (sound_timer > 0) {
+        if (sound_timer == 1)
             std::cout << "BEEP!\n";
-        }
-        --sound_timer;
+        sound_timer--;
     }
-
 }
 
-bool Chip_8::ShouldEmulate()
-{
-    // Until the sdl input is an escape key this should set emulate flag to true
-    emulateFlag = true;
+bool Chip_8::ShouldEmulate() {
+    // Return true as long as emulation should continue.
     return emulateFlag;
 }
 
-bool Chip_8::ShouldDraw()
-{
-    // when chip 8 reads or decides its time to draw, this should set(idk how) draw flag to true
-    // otherwise this should be set to false at the begining of every cycle.
+bool Chip_8::ShouldDraw() {
     return drawFlag;
 }
 
-
-void Chip_8::CheckInput()
-{
-    
+void Chip_8::CheckInput() {
+    std::cout << "Checking input for this cycle of Chip\n";
     const Uint8* keystate = SDL_GetKeyboardState(NULL);
 
-    // Clear previous key state (set all 16 keys to 0)
+    // Clear previous key state
     for (int i = 0; i < 16; i++) {
         key[i] = 0;
     }
 
-    // Map SDL scancodes to Chip‑8 keys
-    key[0] = keystate[SDL_SCANCODE_1];
-    key[1] = keystate[SDL_SCANCODE_2];
-    key[2] = keystate[SDL_SCANCODE_3];
-    key[3] = keystate[SDL_SCANCODE_4];
+    // Map specific SDL scancodes to Chip‑8 keys
+    key[0x1] = keystate[SDL_SCANCODE_1];
+    key[0x2] = keystate[SDL_SCANCODE_2];
+    key[0x3] = keystate[SDL_SCANCODE_3];
+    key[0xC] = keystate[SDL_SCANCODE_4];
 
-    key[4] = keystate[SDL_SCANCODE_Q];
-    key[5] = keystate[SDL_SCANCODE_W];
-    key[6] = keystate[SDL_SCANCODE_E];
-    key[7] = keystate[SDL_SCANCODE_R];
+    key[0x4] = keystate[SDL_SCANCODE_Q];
+    key[0x5] = keystate[SDL_SCANCODE_W];
+    key[0x6] = keystate[SDL_SCANCODE_E];
+    key[0xD] = keystate[SDL_SCANCODE_R];
 
-    key[8] = keystate[SDL_SCANCODE_A];
-    key[9] = keystate[SDL_SCANCODE_S];
-    key[10] = keystate[SDL_SCANCODE_D];
-    key[11] = keystate[SDL_SCANCODE_F];
+    key[0x7] = keystate[SDL_SCANCODE_A];
+    key[0x8] = keystate[SDL_SCANCODE_S];
+    key[0x9] = keystate[SDL_SCANCODE_D];
+    key[0xE] = keystate[SDL_SCANCODE_F];
 
-    key[12] = keystate[SDL_SCANCODE_Z];
-    key[13] = keystate[SDL_SCANCODE_X];
-    key[14] = keystate[SDL_SCANCODE_C];
-    key[15] = keystate[SDL_SCANCODE_V];
+    key[0xA] = keystate[SDL_SCANCODE_Z];
+    key[0x0] = keystate[SDL_SCANCODE_X];
+    key[0xB] = keystate[SDL_SCANCODE_C];
+    key[0xF] = keystate[SDL_SCANCODE_V];
 }
 
-void Chip_8::PrintMemory()
-{
+void Chip_8::PrintMemory() {
     std::cout << "Printing out the Memory\n";
-    for(int i = 0;i < sizeof(memory); i++){
-        std::cout << memory[512 + i] << " ";
-        if(i == 20) std::cout << "\n";
+    // Print a portion of memory for debugging, starting at 0x200
+    for (int i = 0; i < 64; i++) {
+        std::cout << static_cast<int>(memory[512 + i]) << " ";
+        if ((i+1) % 16 == 0)
+            std::cout << "\n";
     }
 }
 
-void Chip_8::DebugDraw()
-{
-    
-    for(int y = 0;y < 32; y++){
-        for(int x = 0; x < 64; x++){
-
-            if(gfx[(y*64) + x] == 0){
-                std::cout << "0";
-            }
-            std::cout << "\n";
+void Chip_8::DebugDraw() {
+    for (int y = 0; y < 32; y++) {
+        for (int x = 0; x < 64; x++) {
+            std::cout << (gfx[y * 64 + x] ? "1" : "0");
         }
         std::cout << "\n";
     }
-
 }
 
-const unsigned char *Chip_8::Getgfx()
-{
+const unsigned char *Chip_8::Getgfx() {
     return gfx;
 }
 

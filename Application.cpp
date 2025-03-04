@@ -72,35 +72,24 @@ int main(int argc, char **argv) {
     
     bool quit = false;
     SDL_Event event;
-    
-    std::cout << "Printing out Memory\n";
-    for (int i = 0; i < 16; i++) {
-        for(int j = 0; j < 256; j++){
-            std::cout << std::hex << (int)chip.GetMem()[i*64 + j] << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
+
 
     // Main emulation loop
     while (chip.ShouldEmulate() && !quit) {
-        // Process SDL events (e.g. window close)
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT)
                 quit = true;
         }
         
-        // Emulate one cycle of Chip-8
         chip.EmulateCycle();
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
-        // If a draw is requested, update the SDL texture and render it
         if (chip.ShouldDraw()) {
             // Get the graphics buffer from Chip-8.
-            // (Assumes you implemented GetGfx() to return a pointer to gfx.)
             const unsigned char* gfxBuffer = chip.Getgfx();
             
-            // Convert each pixel: nonzero becomes white (0xFFFFFFFF), zero becomes black (0xFF000000)
+            // Convert each pixel: 0->black, 1->white
             uint32_t pixels[CHIP8_WIDTH * CHIP8_HEIGHT];
             for (int i = 0; i < CHIP8_WIDTH * CHIP8_HEIGHT; i++) {
                 pixels[i] = (gfxBuffer[i] ? 0xFFFFFFFF : 0x000000FF);
@@ -113,11 +102,9 @@ int main(int argc, char **argv) {
             SDL_RenderPresent(renderer);
         }
         
-        // Check for input (chip.CheckInput() should be implemented to read keyboard events)
         chip.CheckInput();
         
-        // Delay to control emulation speed (adjust as needed)
-        SDL_Delay(2);
+        SDL_Delay(17); // Chip8 runs at 60hz, which is ~= 17 ms;
     }
     
     // Clean up SDL resources
