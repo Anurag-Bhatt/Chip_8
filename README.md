@@ -61,3 +61,11 @@ The emulator maps the Chip-8 keypad to the following keyboard keys:
 - **Input Handling:** Further refinement may be needed to capture key presses and releases accurately.
 - **Sound:** Currently, sound is represented as a "BEEP!" message; actual audio output is not implemented.
 - **Timing Accuracy:** The CPU cycle rate and timer updates could be decoupled for more precise emulation.
+
+## ROMs Notice  
+
+This project **does not include any ROMs** due to licensing concerns. However, you can easily find public domain and test ROMs for Chip-8 by searching online.  
+
+If you're looking for some test ROMs, a good place to start is:  
+- [Cowgod's Chip-8 Technical Reference](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM)  
+- [Awesome Chip-8 - GitHub](https://github.com/tobiasvl/awesome-chip8)  
