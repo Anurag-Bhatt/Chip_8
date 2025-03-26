@@ -64,7 +64,7 @@ The emulator maps the Chip-8 keypad to the following keyboard keys:
 
 ## ROMs Notice  
 
-This project **does not include any ROMs** due to licensing concerns. However, you can easily find public domain and test ROMs for Chip-8 by searching online.  
+This project **does not include any ROMs** due to licensing concerns. However, you can easily test ROMs for Chip-8 by searching online.  
 
 If you're looking for some test ROMs, a good place to start is:  
 - [Cowgod's Chip-8 Technical Reference](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM)  
